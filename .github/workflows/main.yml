@@ -5,7 +5,7 @@ on:
     tags: v[0-9]+.[0-9]+.[0-9]+
 
 env:
-  IMAGE_NAME: ${{ secrets.DOCKER_LOGIN }}/deployer
+  IMAGE_NAME: ${{ secrets.DOCKER_LOGIN }}/deployment-helper
 
 jobs:
   build-push:
@@ -49,4 +49,4 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           passphrase: ${{ secrets.SERVER_SSH_PRIVATE_KEY_PASSPHRASE }}
           script: |
-            manage-docker pull-restart deployer prod
+            manage-docker pull-restart deployment-helper prod
