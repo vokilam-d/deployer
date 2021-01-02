@@ -3,6 +3,8 @@ import { DeployerService } from '../services/deployer.service';
 import { getEventType } from '../../functions/get-event-type.function';
 import { EventType } from '../../enums/event-type.enum';
 import { GithubEvent } from '../../types/github-event';
+import { IssueCommentEventDto } from '../../dtos/issue-comment-event.dto';
+import { WorkflowRunEventDto } from '../../dtos/workflow-run-event.dto';
 
 @Controller()
 export class DeployerController {
@@ -14,8 +16,14 @@ export class DeployerController {
     const eventType = getEventType(body);
 
     switch (eventType) {
-      case EventType.AddIssueComment:
-        this.deployerService.onAddIssueComment(body);
+      case EventType.IssueCommentCreated:
+        this.deployerService.onAddIssueComment(body as IssueCommentEventDto);
+        break;
+      case EventType.DeployRequested:
+        this.deployerService.onDeployRequested(body as WorkflowRunEventDto);
+        break;
+      case EventType.DeployCompleted:
+        this.deployerService.onDeployCompleted(body as WorkflowRunEventDto);
         break;
     }
   }

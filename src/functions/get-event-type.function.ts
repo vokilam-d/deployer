@@ -5,11 +5,18 @@ export const getEventType = (event: BaseGithubEventDto): EventType => {
   if (event.comment && event.issue) {
     switch (event.action) {
       case 'created':
-        return EventType.AddIssueComment;
+        return EventType.IssueCommentCreated;
       case 'edited':
-        return EventType.UpdateIssueComment;
-      case 'deleted':
-        return EventType.DeleteIssueComment;
+        return EventType.IssueCommentUpdated;
+    }
+  }
+
+  if (event.workflow_run) {
+    switch (event.action) {
+      case 'requested':
+        return EventType.DeployRequested;
+      case 'completed':
+        return EventType.DeployCompleted;
     }
   }
 }

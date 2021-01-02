@@ -1,6 +1,6 @@
 export enum EventType {
-  AddIssueComment = 'add_issue_comment',
-  UpdateIssueComment = 'update_issue_comment',
-  DeleteIssueComment = 'delete_issue_comment',
-  DeployCompleted = 'deploy_completed'
+  IssueCommentCreated = 'add_issue_comment',
+  IssueCommentUpdated = 'update_issue_comment',
+  DeployCompleted = 'deploy_completed',
+  DeployRequested = 'deploy_requested'
 }

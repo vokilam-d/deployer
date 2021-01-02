@@ -37,6 +37,13 @@ export class RepositoryService {
     }
 
     parsedVersion[versionType] += 1;
+    switch (versionType) {
+      case VersionType.Major:
+        parsedVersion.minor = 0;
+      case VersionType.Minor:
+        parsedVersion.patch = 0;
+        break;
+    }
 
     return `v${parsedVersion.major}.${parsedVersion.minor}.${parsedVersion.patch}`;
   }
@@ -52,8 +59,15 @@ export class RepositoryService {
     }
   }
 
-  async leaveComment(repository: RepositoryDto, issue: IssueDto, comment: string) {
+  async createIssueComment(repository: RepositoryDto, issue: IssueDto, comment: string, installId: number) {
+    const path = `/repos/${repository.owner.login}/${repository.name}/issues/${issue.number}/comments`;
 
+    try {
+      await this.api.post(path, { body: comment }, undefined, installId);
+    } catch (e) {
+      this.logger.error(`Could not create issue comment:`);
+      this.logger.error(e);
+    }
   }
 
   private parseVersion(tags: TagDto[]): IParsedVersion {
