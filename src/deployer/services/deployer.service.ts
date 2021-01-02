@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { IssueCommentEventDto } from '../../dtos/issue-comment-event.dto';
 import { RepositoryService } from './repository.service';
 import { VersionType } from '../../enums/version-type.enum';
@@ -18,6 +18,7 @@ interface LinkedPullRequest {
 @Injectable()
 export class DeployerService {
 
+  private logger = new Logger(DeployerService.name);
   private versionsPendingDeploy: Map<VersionKey, LinkedPullRequest> = new Map();
   private deploysInProgress: Map<WorkflowId, LinkedPullRequest> = new Map();
 
@@ -64,7 +65,10 @@ export class DeployerService {
     const version = linkedPullRequest.version;
     const status = evt.workflow_run.conclusion;
     const link = evt.workflow_run.html_url;
-    const comment = `@${author}, Deployment of version \`${version}\` finished with status \`${status}\`:\n${link}`;
+    const messageBody = `Deployment of version \`${version}\` finished with status \`${status}\``;
+    const comment = `@${author}, ${messageBody}: \n${link}`;
+
+    this.logger.log(messageBody);
 
     this.repositoryService.createIssueComment(
       linkedPullRequest.repository,

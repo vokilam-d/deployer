@@ -53,6 +53,7 @@ export class RepositoryService {
 
     try {
       await this.api.post(path, { tag_name: tag }, undefined, installId);
+      this.logger.log(`Created release "${tag}" at "${repository.full_name}"`);
     } catch (e) {
       this.logger.error(`Could not create release:`);
       this.logger.error(e);
@@ -63,7 +64,8 @@ export class RepositoryService {
     const path = `/repos/${repository.owner.login}/${repository.name}/issues/${issue.number}/comments`;
 
     try {
-      await this.api.post(path, { body: comment }, undefined, installId);
+      const commentDto = await this.api.post(path, { body: comment }, undefined, installId);
+      this.logger.log(`Created comment at issue ${commentDto.html_url}`);
     } catch (e) {
       this.logger.error(`Could not create issue comment:`);
       this.logger.error(e);
