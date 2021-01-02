@@ -16,8 +16,10 @@ export class DeployerService {
     const versionType = this.getVersionType(eventDto.comment.body);
     if (!versionType) { return; }
 
-    const version = await this.repositoryService.getIncrementVersion(eventDto.repository, versionType);
-    await this.repositoryService.createRelease(eventDto.repository, version);
+    const version = await this.repositoryService.getIncrementedVersion(eventDto.repository, versionType, eventDto.installation.id);
+    await this.repositoryService.createRelease(eventDto.repository, version, eventDto.installation.id);
+
+    // await this.actionService.getWorkflowRuns(eventDto.repository);
   }
 
   private getVersionType(str: string): VersionType {

@@ -6,7 +6,10 @@ export abstract class BaseGithubEventDto {
   sender: UserDto;
   repository: RepositoryDto;
   organization: any;
-  installation: any;
+  installation: {
+    id: number;
+    node_id: string;
+  };
 
   [key: string]: any;
 }

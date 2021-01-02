@@ -3,6 +3,7 @@ import { VersionType } from '../../enums/version-type.enum';
 import { RepositoryDto } from '../../dtos/repository.dto';
 import { GithubApiService } from './github-api.service';
 import { TagDto } from '../../dtos/tag.dto';
+import { IssueDto } from '../../dtos/issue.dto';
 
 interface IParsedVersion {
   major: number;
@@ -16,12 +17,12 @@ export class RepositoryService {
 
   constructor(private readonly api: GithubApiService) { }
 
-  async getIncrementVersion(repository: RepositoryDto, versionType: VersionType): Promise<string> {
+  async getIncrementedVersion(repository: RepositoryDto, versionType: VersionType, installId: number): Promise<string> {
     const path = `/repos/${repository.owner.login}/${repository.name}/tags`;
 
     let tags: TagDto[];
     try {
-      tags = await this.api.get(path);
+      tags = await this.api.get(path, undefined, installId);
     } catch (e) {
       this.logger.error(`Could not get repository tags:`);
       this.logger.error(e);
@@ -40,15 +41,19 @@ export class RepositoryService {
     return `v${parsedVersion.major}.${parsedVersion.minor}.${parsedVersion.patch}`;
   }
 
-  async createRelease(repository: RepositoryDto, tag: string) {
+  async createRelease(repository: RepositoryDto, tag: string, installId: number) {
     const path = `/repos/${repository.owner.login}/${repository.name}/releases`;
 
     try {
-      await this.api.post(path, { tag_name: tag, draft: true });
+      await this.api.post(path, { tag_name: tag }, undefined, installId);
     } catch (e) {
       this.logger.error(`Could not create release:`);
       this.logger.error(e);
     }
+  }
+
+  async leaveComment(repository: RepositoryDto, issue: IssueDto, comment: string) {
+
   }
 
   private parseVersion(tags: TagDto[]): IParsedVersion {
