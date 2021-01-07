@@ -2,6 +2,9 @@ import { HttpService, Injectable, Logger, OnApplicationBootstrap } from '@nestjs
 import { sign } from 'jsonwebtoken';
 import { InstallationDto } from '../../dtos/installation.dto';
 import { AccessTokenDto } from '../../dtos/access-token.dto';
+import { mergeMap, retryWhen } from 'rxjs/operators';
+import { throwError } from 'rxjs';
+import { AxiosResponse } from 'axios';
 
 
 @Injectable()
@@ -16,14 +19,16 @@ export class GithubApiService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap(): Promise<any> {
     this.initJwt();
-    await this.getAccessTokens();
+    await this.setAccessTokens();
   }
 
   async get(path: string, headers?: any, installId?: number): Promise<any> {
     const url = this.buildUrl(path);
     const options = this.buildReqOptions(headers, installId);
 
-    const response = await this.http.get(url, options).toPromise();
+    const response = await this.http.get(url, options)
+      .pipe( this.retryOnUnauthorized(installId) )
+      .toPromise();
     return response.data;
   }
 
@@ -31,7 +36,9 @@ export class GithubApiService implements OnApplicationBootstrap {
     const url = this.buildUrl(path);
     const options = this.buildReqOptions(headers, installId);
 
-    const response = await this.http.post(url, data, options).toPromise();
+    const response = await this.http.post(url, data, options)
+      .pipe( this.retryOnUnauthorized(installId) )
+      .toPromise();
     return response.data;
   }
 
@@ -39,7 +46,9 @@ export class GithubApiService implements OnApplicationBootstrap {
     const url = this.buildUrl(path);
     const options = this.buildReqOptions(headers, installId);
 
-    const response = await this.http.put(url, data, options).toPromise();
+    const response = await this.http.put(url, data, options)
+      .pipe( this.retryOnUnauthorized(installId) )
+      .toPromise();
     return response.data;
   }
 
@@ -47,7 +56,9 @@ export class GithubApiService implements OnApplicationBootstrap {
     const url = this.buildUrl(path);
     const options = this.buildReqOptions(headers, installId);
 
-    const response = await this.http.patch(url, data, options).toPromise();
+    const response = await this.http.patch(url, data, options)
+      .pipe( this.retryOnUnauthorized(installId) )
+      .toPromise();
     return response.data;
   }
 
@@ -55,7 +66,9 @@ export class GithubApiService implements OnApplicationBootstrap {
     const url = this.buildUrl(path);
     const options = this.buildReqOptions(headers, installId);
 
-    const response = await this.http.delete(url, options).toPromise();
+    const response = await this.http.delete(url, options)
+      .pipe( this.retryOnUnauthorized(installId) )
+      .toPromise();
     return response.data;
   }
 
@@ -79,8 +92,8 @@ export class GithubApiService implements OnApplicationBootstrap {
     this.githubJwt = sign(payload, key, { algorithm: 'RS256' });
   }
 
-  private async getAccessTokens() {
-    let installs: InstallationDto[];
+  private async setAccessTokens() {
+    let installs: InstallationDto[] = [];
     try {
       installs = await this.get('/app/installations');
     } catch (e) {
@@ -89,15 +102,17 @@ export class GithubApiService implements OnApplicationBootstrap {
     }
 
     for (const install of installs) {
-      let token: AccessTokenDto;
-      try {
-        token = await this.post(`/app/installations/${install.id}/access_tokens`);
-      } catch (e) {
-        this.logger.error(`Could not create access token for installation "${install.id}":`);
-        this.logger.error(e);
-      }
+      await this.setAccessToken(install.id);
+    }
+  }
 
-      this.accessTokens.set(install.id, token);
+  private async setAccessToken(installationId: number) {
+    try {
+      const token: AccessTokenDto = await this.post(`/app/installations/${installationId}/access_tokens`);
+      this.accessTokens.set(installationId, token);
+    } catch (e) {
+      this.logger.error(`Could not create access token for installation "${installationId}":`);
+      this.logger.error(e);
     }
   }
 
@@ -127,5 +142,19 @@ export class GithubApiService implements OnApplicationBootstrap {
         ...headers
       }
     };
+  }
+
+  private retryOnUnauthorized(installId: number) {
+    return retryWhen<AxiosResponse>(errors => errors.pipe(
+      mergeMap((error, i) => {
+        const isUnauthorized = error.response?.status === 401;
+
+        if (!installId || !isUnauthorized || i > 0) {
+          return throwError(error);
+        } else {
+          return this.setAccessToken(installId);
+        }
+      })
+    ));
   }
 }
