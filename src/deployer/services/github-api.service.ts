@@ -110,6 +110,7 @@ export class GithubApiService implements OnApplicationBootstrap {
     try {
       const token: AccessTokenDto = await this.post(`/app/installations/${installationId}/access_tokens`);
       this.accessTokens.set(installationId, token);
+      this.logger.log(`Set access token for installation id "${installationId}"`)
     } catch (e) {
       this.logger.error(`Could not create access token for installation "${installationId}":`);
       this.logger.error(e);
