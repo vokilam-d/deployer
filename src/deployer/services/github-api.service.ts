@@ -108,6 +108,7 @@ export class GithubApiService implements OnApplicationBootstrap {
 
   private async setAccessToken(installationId: number) {
     try {
+      this.accessTokens.delete(installationId);
       const token: AccessTokenDto = await this.post(`/app/installations/${installationId}/access_tokens`);
       this.accessTokens.set(installationId, token);
       this.logger.log(`Set access token for installation id "${installationId}"`)
