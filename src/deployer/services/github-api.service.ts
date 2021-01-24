@@ -23,6 +23,7 @@ export class GithubApiService implements OnApplicationBootstrap {
   }
 
   async get(path: string, headers?: any, installId?: number): Promise<any> {
+    console.log('start get', path);
     const url = this.buildUrl(path);
     const options = this.buildReqOptions(headers, installId);
 
@@ -33,6 +34,7 @@ export class GithubApiService implements OnApplicationBootstrap {
   }
 
   async post(path: string, data?: any, headers?: any, installId?: number): Promise<any> {
+    console.log('start post', path);
     const url = this.buildUrl(path);
     const options = this.buildReqOptions(headers, installId);
 
@@ -136,6 +138,8 @@ export class GithubApiService implements OnApplicationBootstrap {
       authHeader = `Bearer ${this.githubJwt}`;
     }
 
+    console.log({ authHeader });
+
 
     return {
       headers: {
@@ -151,10 +155,10 @@ export class GithubApiService implements OnApplicationBootstrap {
       mergeMap((error, i) => {
         const isUnauthorized = error.response?.status === 401;
 
-        if (!installId || !isUnauthorized || i > 0) {
-          return throwError(error);
-        } else {
+        if (isUnauthorized && installId && i === 0) {
           return this.setAccessToken(installId);
+        } else {
+          return throwError(error);
         }
       })
     ));
