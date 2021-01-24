@@ -151,13 +151,18 @@ export class GithubApiService implements OnApplicationBootstrap {
   }
 
   private retryOnUnauthorized(installId: number) {
+    const setAccessToken = () => new Promise((async resolve => {
+      await this.setAccessToken(installId);
+      setTimeout(() => resolve(), 30000); // 30 sec
+    }));
+
     return retryWhen<AxiosResponse>(errors => errors.pipe(
       mergeMap((error, i) => {
         const isUnauthorized = error.response?.status === 401;
 
         if (isUnauthorized && installId && i === 0) {
           this.initJwt();
-          return this.setAccessToken(installId);
+          return setAccessToken();
         } else {
           return throwError(error);
         }
