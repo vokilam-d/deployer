@@ -156,6 +156,7 @@ export class GithubApiService implements OnApplicationBootstrap {
         const isUnauthorized = error.response?.status === 401;
 
         if (isUnauthorized && installId && i === 0) {
+          this.initJwt();
           return this.setAccessToken(installId);
         } else {
           return throwError(error);
