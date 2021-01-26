@@ -4,7 +4,7 @@ import { InstallationDto } from '../../dtos/installation.dto';
 import { AccessTokenDto } from '../../dtos/access-token.dto';
 import { mergeMap, retryWhen } from 'rxjs/operators';
 import { throwError } from 'rxjs';
-import { AxiosResponse } from 'axios';
+import { AxiosResponse, AxiosError } from 'axios';
 
 
 @Injectable()
@@ -22,56 +22,91 @@ export class GithubApiService implements OnApplicationBootstrap {
     await this.setAccessTokens();
   }
 
-  async get(path: string, headers?: any, installId?: number): Promise<any> {
+  async get(path: string, headers?: any, installId?: number, tryCount: number = 0): Promise<any> {
     console.log('start get', path);
     const url = this.buildUrl(path);
     const options = this.buildReqOptions(headers, installId);
 
-    const response = await this.http.get(url, options)
-      .pipe( this.retryOnUnauthorized(installId) )
-      .toPromise();
-    return response.data;
+    try {
+      const response = await this.http.get(url, options).toPromise();
+      return response.data;
+    } catch (error) {
+      if (GithubApiService.shouldResetAccessToken(error, installId, tryCount)) {
+        await this.resetAccessToken(installId);
+        this.get(path, headers, installId, tryCount + 1).then();
+      } else {
+        throw error;
+      }
+    }
   }
 
-  async post(path: string, data?: any, headers?: any, installId?: number): Promise<any> {
+  async post(path: string, data?: any, headers?: any, installId?: number, tryCount: number = 0): Promise<any> {
     console.log('start post', path);
     const url = this.buildUrl(path);
     const options = this.buildReqOptions(headers, installId);
 
-    const response = await this.http.post(url, data, options)
-      .pipe( this.retryOnUnauthorized(installId) )
-      .toPromise();
-    return response.data;
+    try {
+      const response = await this.http.post(url, data, options).toPromise();
+      return response.data;
+    } catch (error) {
+      if (GithubApiService.shouldResetAccessToken(error, installId, tryCount)) {
+        await this.resetAccessToken(installId);
+        this.post(path, data, headers, installId, tryCount + 1).then();
+      } else {
+        throw error;
+      }
+    }
   }
 
-  async put(path: string, data?: any, headers?: any, installId?: number): Promise<any> {
+  async put(path: string, data?: any, headers?: any, installId?: number, tryCount: number = 0): Promise<any> {
     const url = this.buildUrl(path);
     const options = this.buildReqOptions(headers, installId);
 
-    const response = await this.http.put(url, data, options)
-      .pipe( this.retryOnUnauthorized(installId) )
-      .toPromise();
-    return response.data;
+    try {
+      const response = await this.http.put(url, data, options).toPromise();
+      return response.data;
+    } catch (error) {
+      if (GithubApiService.shouldResetAccessToken(error, installId, tryCount)) {
+        await this.resetAccessToken(installId);
+        this.put(path, data, headers, installId, tryCount + 1).then();
+      } else {
+        throw error;
+      }
+    }
   }
 
-  async patch(path: string, data?: any, headers?: any, installId?: number): Promise<any> {
+  async patch(path: string, data?: any, headers?: any, installId?: number, tryCount: number = 0): Promise<any> {
     const url = this.buildUrl(path);
     const options = this.buildReqOptions(headers, installId);
 
-    const response = await this.http.patch(url, data, options)
-      .pipe( this.retryOnUnauthorized(installId) )
-      .toPromise();
-    return response.data;
+    try {
+      const response = await this.http.patch(url, data, options).toPromise();
+      return response.data;
+    } catch (error) {
+      if (GithubApiService.shouldResetAccessToken(error, installId, tryCount)) {
+        await this.resetAccessToken(installId);
+        this.patch(path, data, headers, installId, tryCount + 1).then();
+      } else {
+        throw error;
+      }
+    }
   }
 
-  async delete(path: string, headers?: any, installId?: number): Promise<any> {
+  async delete(path: string, headers?: any, installId?: number, tryCount: number = 0): Promise<any> {
     const url = this.buildUrl(path);
     const options = this.buildReqOptions(headers, installId);
 
-    const response = await this.http.delete(url, options)
-      .pipe( this.retryOnUnauthorized(installId) )
-      .toPromise();
-    return response.data;
+    try {
+      const response = await this.http.delete(url, options).toPromise();
+      return response.data;
+    } catch (error) {
+      if (GithubApiService.shouldResetAccessToken(error, installId, tryCount)) {
+        await this.resetAccessToken(installId);
+        this.delete(path, headers, installId, tryCount + 1).then();
+      } else {
+        throw error;
+      }
+    }
   }
 
   private initJwt() {
@@ -120,6 +155,15 @@ export class GithubApiService implements OnApplicationBootstrap {
     }
   }
 
+  private async resetAccessToken(installationId: number): Promise<void> {
+    this.initJwt();
+
+    return new Promise((async resolve => {
+      await this.setAccessToken(installationId);
+      setTimeout(() => resolve(), 10000); // 10 sec
+    }));
+  }
+
   private buildUrl(path: string): string {
     if (path.indexOf('/') === 0) {
       path = path.slice(1);
@@ -150,23 +194,9 @@ export class GithubApiService implements OnApplicationBootstrap {
     };
   }
 
-  private retryOnUnauthorized(installId: number) {
-    const setAccessToken = () => new Promise((async resolve => {
-      await this.setAccessToken(installId);
-      setTimeout(() => resolve(), 30000); // 30 sec
-    }));
+  private static shouldResetAccessToken(error: AxiosError, installId: number, tryCount: number): boolean {
+    const isUnauthorized = error.response?.status === 401;
 
-    return retryWhen<AxiosResponse>(errors => errors.pipe(
-      mergeMap((error, i) => {
-        const isUnauthorized = error.response?.status === 401;
-
-        if (isUnauthorized && installId && i === 0) {
-          this.initJwt();
-          return setAccessToken();
-        } else {
-          return throwError(error);
-        }
-      })
-    ));
+    return isUnauthorized && installId && tryCount === 0;
   }
 }
