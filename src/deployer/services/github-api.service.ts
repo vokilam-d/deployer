@@ -33,7 +33,7 @@ export class GithubApiService implements OnApplicationBootstrap {
     } catch (error) {
       if (GithubApiService.shouldResetAccessToken(error, installId, tryCount)) {
         await this.resetAccessToken(installId);
-        this.get(path, headers, installId, tryCount + 1).then();
+        return this.get(path, headers, installId, tryCount + 1);
       } else {
         throw error;
       }
@@ -51,7 +51,7 @@ export class GithubApiService implements OnApplicationBootstrap {
     } catch (error) {
       if (GithubApiService.shouldResetAccessToken(error, installId, tryCount)) {
         await this.resetAccessToken(installId);
-        this.post(path, data, headers, installId, tryCount + 1).then();
+        return this.post(path, data, headers, installId, tryCount + 1);
       } else {
         throw error;
       }
@@ -68,7 +68,7 @@ export class GithubApiService implements OnApplicationBootstrap {
     } catch (error) {
       if (GithubApiService.shouldResetAccessToken(error, installId, tryCount)) {
         await this.resetAccessToken(installId);
-        this.put(path, data, headers, installId, tryCount + 1).then();
+        return this.put(path, data, headers, installId, tryCount + 1);
       } else {
         throw error;
       }
@@ -85,7 +85,7 @@ export class GithubApiService implements OnApplicationBootstrap {
     } catch (error) {
       if (GithubApiService.shouldResetAccessToken(error, installId, tryCount)) {
         await this.resetAccessToken(installId);
-        this.patch(path, data, headers, installId, tryCount + 1).then();
+        return this.patch(path, data, headers, installId, tryCount + 1);
       } else {
         throw error;
       }
@@ -102,7 +102,7 @@ export class GithubApiService implements OnApplicationBootstrap {
     } catch (error) {
       if (GithubApiService.shouldResetAccessToken(error, installId, tryCount)) {
         await this.resetAccessToken(installId);
-        this.delete(path, headers, installId, tryCount + 1).then();
+        return this.delete(path, headers, installId, tryCount + 1);
       } else {
         throw error;
       }
@@ -160,7 +160,7 @@ export class GithubApiService implements OnApplicationBootstrap {
 
     return new Promise((async resolve => {
       await this.setAccessToken(installationId);
-      setTimeout(() => resolve(), 30000); // 10 sec
+      setTimeout(() => resolve(), 10000); // 10 sec
     }));
   }
 
