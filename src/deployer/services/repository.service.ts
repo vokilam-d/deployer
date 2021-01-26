@@ -28,8 +28,6 @@ export class RepositoryService {
       this.logger.error(e);
     }
 
-    console.log({tags});
-
     let parsedVersion: IParsedVersion;
     try {
       parsedVersion = this.parseVersion(tags);
@@ -37,8 +35,6 @@ export class RepositoryService {
       this.logger.error(`Could not parse version from tags:`);
       this.logger.error(e);
     }
-
-    console.log({parsedVersion});
 
     parsedVersion[versionType] += 1;
     switch (versionType) {
@@ -48,7 +44,6 @@ export class RepositoryService {
         parsedVersion.patch = 0;
         break;
     }
-    console.log({parsedVersionAfterSwitch: parsedVersion});
 
     return `v${parsedVersion.major}.${parsedVersion.minor}.${parsedVersion.patch}`;
   }
@@ -92,8 +87,6 @@ export class RepositoryService {
     if (matchArray === null) {
       throw new Error(`Could not find appropriate tag`);
     }
-
-    console.log({matchArray});
 
     return {
       major: +matchArray[1],

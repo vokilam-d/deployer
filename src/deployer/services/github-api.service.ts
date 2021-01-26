@@ -23,7 +23,6 @@ export class GithubApiService implements OnApplicationBootstrap {
   }
 
   async get(path: string, headers?: any, installId?: number, tryCount: number = 0): Promise<any> {
-    console.log('start get', path);
     const url = this.buildUrl(path);
     const options = this.buildReqOptions(headers, installId);
 
@@ -41,7 +40,6 @@ export class GithubApiService implements OnApplicationBootstrap {
   }
 
   async post(path: string, data?: any, headers?: any, installId?: number, tryCount: number = 0): Promise<any> {
-    console.log('start post', path);
     const url = this.buildUrl(path);
     const options = this.buildReqOptions(headers, installId);
 
@@ -181,9 +179,6 @@ export class GithubApiService implements OnApplicationBootstrap {
     } else {
       authHeader = `Bearer ${this.githubJwt}`;
     }
-
-    console.log({ authHeader });
-
 
     return {
       headers: {
