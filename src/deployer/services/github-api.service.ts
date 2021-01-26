@@ -160,7 +160,7 @@ export class GithubApiService implements OnApplicationBootstrap {
 
     return new Promise((async resolve => {
       await this.setAccessToken(installationId);
-      setTimeout(() => resolve(), 10000); // 10 sec
+      setTimeout(() => resolve(), 30000); // 10 sec
     }));
   }
 
