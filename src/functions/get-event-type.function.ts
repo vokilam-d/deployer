@@ -19,4 +19,8 @@ export const getEventType = (event: BaseGithubEventDto): EventType => {
         return EventType.DeployCompleted;
     }
   }
+
+  if (event.ref && event.commits?.length > 0) {
+    return EventType.CommitPushed;
+  }
 }

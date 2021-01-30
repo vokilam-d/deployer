@@ -2,9 +2,7 @@ import { HttpService, Injectable, Logger, OnApplicationBootstrap } from '@nestjs
 import { sign } from 'jsonwebtoken';
 import { InstallationDto } from '../../dtos/installation.dto';
 import { AccessTokenDto } from '../../dtos/access-token.dto';
-import { mergeMap, retryWhen } from 'rxjs/operators';
-import { throwError } from 'rxjs';
-import { AxiosResponse, AxiosError } from 'axios';
+import { AxiosError } from 'axios';
 
 
 @Injectable()

@@ -5,6 +5,7 @@ import { EventType } from '../../enums/event-type.enum';
 import { GithubEvent } from '../../types/github-event';
 import { IssueCommentEventDto } from '../../dtos/issue-comment-event.dto';
 import { WorkflowRunEventDto } from '../../dtos/workflow-run-event.dto';
+import { CommitPushedEventDto } from '../../dtos/commit-pushed-event.dto';
 
 @Controller()
 export class DeployerController {
@@ -24,6 +25,9 @@ export class DeployerController {
         break;
       case EventType.DeployCompleted:
         this.deployerService.onDeployCompleted(body as WorkflowRunEventDto);
+        break;
+      case EventType.CommitPushed:
+        this.deployerService.onCommitPushed(body as CommitPushedEventDto);
         break;
     }
   }

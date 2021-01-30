@@ -48,12 +48,12 @@ export class RepositoryService {
     return `v${parsedVersion.major}.${parsedVersion.minor}.${parsedVersion.patch}`;
   }
 
-  async createRelease(repository: RepositoryDto, tag: string, installId: number) {
+  async createRelease(repository: RepositoryDto, tag: string, installId: number, reason: string) {
     const path = `/repos/${repository.owner.login}/${repository.name}/releases`;
 
     try {
       await this.api.post(path, { tag_name: tag }, undefined, installId);
-      this.logger.log(`Created release "${tag}" at "${repository.full_name}"`);
+      this.logger.log(`Created release "${tag}" at "${repository.full_name}". Reason source: "${reason}"`);
     } catch (e) {
       this.logger.error(`Could not create release:`);
       this.logger.error(e);

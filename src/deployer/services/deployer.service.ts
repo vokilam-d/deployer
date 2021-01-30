@@ -6,6 +6,8 @@ import { WorkflowRunEventDto } from '../../dtos/workflow-run-event.dto';
 import { RepositoryDto } from '../../dtos/repository.dto';
 import { IssueDto } from '../../dtos/issue.dto';
 import { EventInstallationDto } from '../../dtos/event-installation.dto';
+import { CommitPushedEventDto } from '../../dtos/commit-pushed-event.dto';
+import { CommitDto } from '../../dtos/commit.dto';
 
 type VersionKey = string;
 type WorkflowId = string;
@@ -23,18 +25,14 @@ export class DeployerService {
   private deploysInProgress: Map<WorkflowId, LinkedPullRequest> = new Map();
 
   constructor(
-    private readonly repositoryService: RepositoryService
+    private readonly repositoryService: RepositoryService,
   ) { }
 
   async onAddIssueComment(evt: IssueCommentEventDto): Promise<void> {
     if (evt.comment.author_association !== 'OWNER') { return; }
 
-    const versionType = this.getVersionType(evt.comment.body);
-    if (!versionType) { return; }
-
-    const version = await this.repositoryService.getIncrementedVersion(evt.repository, versionType, evt.installation.id);
-    await this.repositoryService.createRelease(evt.repository, version, evt.installation.id);
-
+    const versionType = this.getVersionTypeFromStr(evt.comment.body);
+    const version = await this.createIncrementedRelease(versionType, evt.repository, evt.installation, 'comment');
     const versionKey = this.getVersionKey(version, evt.installation);
     this.versionsPendingDeploy.set(versionKey, { repository: evt.repository, issue: evt.issue, version });
   }
@@ -78,7 +76,48 @@ export class DeployerService {
     );
   }
 
-  private getVersionType(str: string): VersionType {
+  async onCommitPushed(evt: CommitPushedEventDto): Promise<void> {
+    const refSplit = evt.ref.split('/');
+    const isDefaultBranch = refSplit[refSplit.length - 1] === evt.repository.default_branch;
+    if (!isDefaultBranch) { return; }
+
+    const [versionType, commit] = this.getVersionTypeFromOwnerCommit(evt.commits, evt.repository);
+    await this.createIncrementedRelease(versionType, evt.repository, evt.installation, `commit ${commit?.id.slice(0, 8)}`);
+  }
+
+  private async createIncrementedRelease(
+    versionType: VersionType,
+    repository: RepositoryDto,
+    installation: EventInstallationDto,
+    reason: string
+  ): Promise<string> {
+
+    if (!versionType) { return; }
+
+    const version = await this.repositoryService.getIncrementedVersion(repository, versionType, installation.id);
+    await this.repositoryService.createRelease(repository, version, installation.id, reason);
+
+    return version;
+  }
+
+  private getVersionTypeFromOwnerCommit(commits: CommitDto[], repository: RepositoryDto): [VersionType, CommitDto] {
+    for (const commit of commits) {
+      if (commit.committer.username !== repository.owner.login) {
+        continue;
+      }
+
+      const versionType = this.getVersionTypeFromStr(commit.message);
+      if (!versionType) {
+        continue;
+      }
+
+      return [versionType, commit];
+    }
+
+    return [null, null];
+  }
+
+  private getVersionTypeFromStr(str: string): VersionType {
     const types = Object.values(VersionType);
     str = str.toLowerCase();
 
