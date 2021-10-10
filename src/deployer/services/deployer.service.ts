@@ -63,8 +63,16 @@ export class DeployerService {
     const version = linkedPullRequest.version;
     const status = evt.workflow_run.conclusion;
     const link = evt.workflow_run.html_url;
-    const messageBody = `Deployment of version \`${version}\` finished with status \`${status}\``;
-    const comment = `@${author}, ${messageBody}: \n${link}`;
+
+    let messageBody: string = ``;
+    if (status === 'failure') {
+      messageBody += `❌ Failed deployment! Please, check the logs`;
+    } else if (status === 'success') {
+      messageBody += `✅ Success. Version: \`${version}\``;
+    } else {
+      messageBody += `Deployment of version \`${version}\` finished with status \`${status}\``;
+    }
+    const comment = `@${author}, ${messageBody} \n${link}`;
 
     this.logger.log(messageBody);
 
