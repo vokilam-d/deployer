@@ -29,7 +29,7 @@ export class DeployerService {
   ) { }
 
   async onAddIssueComment(evt: IssueCommentEventDto): Promise<void> {
-    if (evt.comment.author_association !== 'OWNER') { return; }
+    if (!this.canDeployFromComment(evt)) { return; }
 
     const versionType = this.getVersionTypeFromStr(evt.comment.body);
     const version = await this.createIncrementedRelease(versionType, evt.repository, evt.installation, 'comment');
@@ -138,5 +138,9 @@ export class DeployerService {
 
   private getWorkflowKey(evt: WorkflowRunEventDto): VersionKey {
     return `${evt.workflow_run.id}-${evt.installation.id}`;
+  }
+
+  private canDeployFromComment(commentEvent: IssueCommentEventDto): boolean {
+    return commentEvent.comment.author_association === 'OWNER' || commentEvent.comment.author_association === 'COLLABORATOR';
   }
 }

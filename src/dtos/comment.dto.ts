@@ -9,7 +9,7 @@ export class CommentDto {
   user: UserDto;
   created_at: string;
   updated_at: string;
-  author_association: 'OWNER' | string;
+  author_association: 'OWNER' | 'COLLABORATOR' | string;
   body: string;
   performed_via_github_app: any;
 }
