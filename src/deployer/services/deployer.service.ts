@@ -85,6 +85,8 @@ export class DeployerService {
   }
 
   async onCommitPushed(evt: CommitPushedEventDto): Promise<void> {
+    this.logger.log(`Commit pushed: ${evt.ref}`);
+    console.log(JSON.stringify(evt, null, 2));
     const refSplit = evt.ref.split('/');
     const isDefaultBranch = refSplit[refSplit.length - 1] === evt.repository.default_branch;
     if (!isDefaultBranch) { return; }
