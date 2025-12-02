@@ -89,6 +89,10 @@ export class DeployerService {
     const isDefaultBranch = refSplit[refSplit.length - 1] === evt.repository.default_branch;
     if (!isDefaultBranch) { return; }
 
+    if (evt.forced && evt.before) {
+      await this.handleAmendedCommit(evt.repository, evt.before, evt.installation.id);
+    }
+
     const [versionType, commit] = this.getVersionTypeFromOwnerCommit(evt.commits, evt.repository);
     await this.createIncrementedRelease(versionType, evt.repository, evt.installation, `commit ${commit?.id.slice(0, 8)}`);
   }
@@ -142,5 +146,58 @@ export class DeployerService {
 
   private canDeployFromComment(commentEvent: IssueCommentEventDto): boolean {
     return commentEvent.comment.author_association === 'OWNER' || commentEvent.comment.author_association === 'COLLABORATOR';
+  }
+
+  private async handleAmendedCommit(
+    repository: RepositoryDto,
+    oldCommitSha: string,
+    installId: number
+  ): Promise<void> {
+    try {
+      // Check if old commit has tags/releases
+      const tags = await this.repositoryService.getTagsForCommit(repository, oldCommitSha, installId);
+      const releases = await this.repositoryService.getReleasesForCommit(repository, oldCommitSha, installId);
+
+      if (tags.length === 0 && releases.length === 0) {
+        // No tags or releases to clean up
+        return;
+      }
+
+      // Check if old commit no longer belongs to any branch
+      const isInAnyBranch = await this.repositoryService.isCommitInAnyBranch(repository, oldCommitSha, installId);
+
+      if (!isInAnyBranch) {
+        // This is an amended commit - delete tags and releases
+        this.logger.debug(`Detected amended commit ${oldCommitSha.slice(0, 8)}. Cleaning up ${tags.length} tag(s) and ${releases.length} release(s).`);
+
+        // Delete releases first (they reference tags)
+        for (const release of releases) {
+          try {
+            await this.repositoryService.deleteRelease(repository, release.id, installId);
+          } catch (e) {
+            this.logger.error(`Failed to delete release ${release.id} (${release.tag_name}):`);
+            this.logger.error(e);
+            // Continue with other deletions even if one fails
+          }
+        }
+
+        // Delete tags
+        for (const tag of tags) {
+          try {
+            await this.repositoryService.deleteTag(repository, tag.name, installId);
+          } catch (e) {
+            this.logger.error(`Failed to delete tag ${tag.name}:`);
+            this.logger.error(e);
+            // Continue with other deletions even if one fails
+          }
+        }
+
+        this.logger.log(`Successfully cleaned up ${tags.length} tag(s) and ${releases.length} release(s) for amended commit ${oldCommitSha.slice(0, 8)}`);
+      }
+    } catch (e) {
+      this.logger.error(`Error handling amended commit ${oldCommitSha.slice(0, 8)}:`);
+      this.logger.error(e);
+      // Don't throw - allow the process to continue with creating the new release
+    }
   }
 }

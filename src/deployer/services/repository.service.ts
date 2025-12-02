@@ -53,7 +53,7 @@ export class RepositoryService {
 
     try {
       await this.api.post(path, { tag_name: tag }, undefined, installId);
-      this.logger.log(`Created release "${tag}" at "${repository.full_name}". Reason source: "${reason}"`);
+      this.logger.debug(`Created release "${tag}" at "${repository.full_name}". Reason source: "${reason}"`);
     } catch (e) {
       this.logger.error(`Could not create release:`);
       this.logger.error(e);
@@ -65,10 +65,88 @@ export class RepositoryService {
 
     try {
       const commentDto = await this.api.post(path, { body: comment }, undefined, installId);
-      this.logger.log(`Created comment at issue ${commentDto.html_url}`);
+      this.logger.debug(`Created comment at issue ${commentDto.html_url}`);
     } catch (e) {
       this.logger.error(`Could not create issue comment:`);
       this.logger.error(e);
+    }
+  }
+
+  async getTagsForCommit(repository: RepositoryDto, commitSha: string, installId: number): Promise<TagDto[]> {
+    const path = `/repos/${repository.owner.login}/${repository.name}/tags`;
+
+    try {
+      const tags: TagDto[] = await this.api.get(path, undefined, installId);
+      return tags.filter(tag => tag.commit.sha === commitSha);
+    } catch (e) {
+      this.logger.error(`Could not get tags for commit ${commitSha}:`);
+      this.logger.error(e);
+      return [];
+    }
+  }
+
+  async getReleasesForCommit(
+    repository: RepositoryDto,
+    commitSha: string,
+    installId: number
+  ): Promise<Array<{ id: number; tag_name: string }>> {
+    const path = `/repos/${repository.owner.login}/${repository.name}/releases`;
+    const releases: Array<{ id: number; tag_name: string }> = [];
+
+    try {
+      const allReleases = await this.api.get(path, undefined, installId);
+      const tagsForCommit = await this.getTagsForCommit(repository, commitSha, installId);
+      const tagNames = new Set(tagsForCommit.map(tag => tag.name));
+
+      for (const release of allReleases) {
+        if (tagNames.has(release.tag_name)) {
+          releases.push({ id: release.id, tag_name: release.tag_name });
+        }
+      }
+    } catch (e) {
+      this.logger.error(`Could not get releases for commit ${commitSha}:`);
+      this.logger.error(e);
+    }
+
+    return releases;
+  }
+
+  async isCommitInAnyBranch(repository: RepositoryDto, commitSha: string, installId: number): Promise<boolean> {
+    const path = `/repos/${repository.owner.login}/${repository.name}/commits/${commitSha}/branches-where-head`;
+
+    try {
+      const branches = await this.api.get(path, undefined, installId);
+      return Array.isArray(branches) && branches.length > 0;
+    } catch (e) {
+      this.logger.error(`Could not check if commit ${commitSha} belongs to any branch:`);
+      this.logger.error(e);
+      return false;
+    }
+  }
+
+  async deleteTag(repository: RepositoryDto, tagName: string, installId: number): Promise<void> {
+    const path = `/repos/${repository.owner.login}/${repository.name}/git/refs/tags/${tagName}`;
+
+    try {
+      await this.api.delete(path, undefined, installId);
+      this.logger.debug(`Deleted tag "${tagName}" from "${repository.full_name}"`);
+    } catch (e) {
+      this.logger.error(`Could not delete tag "${tagName}":`);
+      this.logger.error(e);
+      throw e;
+    }
+  }
+
+  async deleteRelease(repository: RepositoryDto, releaseId: number, installId: number): Promise<void> {
+    const path = `/repos/${repository.owner.login}/${repository.name}/releases/${releaseId}`;
+
+    try {
+      await this.api.delete(path, undefined, installId);
+      this.logger.debug(`Deleted release "${releaseId}" from "${repository.full_name}"`);
+    } catch (e) {
+      this.logger.error(`Could not delete release "${releaseId}":`);
+      this.logger.error(e);
+      throw e;
     }
   }
 
