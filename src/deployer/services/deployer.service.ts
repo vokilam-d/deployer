@@ -32,7 +32,7 @@ export class DeployerService {
     if (!this.canDeployFromComment(evt)) { return; }
 
     const versionType = this.getVersionTypeFromStr(evt.comment.body);
-    const version = await this.createIncrementedRelease(versionType, evt.repository, evt.installation, 'comment');
+    const version = await this.createIncrementedTag(versionType, evt.repository, evt.installation, 'comment');
     const versionKey = this.getVersionKey(version, evt.installation);
     this.versionsPendingDeploy.set(versionKey, { repository: evt.repository, issue: evt.issue, version });
   }
@@ -94,20 +94,32 @@ export class DeployerService {
     }
 
     const [versionType, commit] = this.getVersionTypeFromOwnerCommit(evt.commits, evt.repository);
-    await this.createIncrementedRelease(versionType, evt.repository, evt.installation, `commit ${commit?.id.slice(0, 8)}`);
+    await this.createIncrementedTag(
+      versionType,
+      evt.repository,
+      evt.installation,
+      `commit ${commit?.id.slice(0, 8)}`,
+      evt.after
+    );
   }
 
-  private async createIncrementedRelease(
+  private async createIncrementedTag(
     versionType: VersionType,
     repository: RepositoryDto,
     installation: EventInstallationDto,
-    reason: string
-  ): Promise<string> {
+    reason: string,
+    targetSha?: string
+  ): Promise<string | undefined> {
+    if (!versionType) {
+      return undefined;
+    }
 
-    if (!versionType) { return; }
+    const installId = installation.id;
+    const version = await this.repositoryService.getIncrementedVersion(repository, versionType, installId);
+    const sha = targetSha
+      ?? await this.repositoryService.getBranchHeadSha(repository, repository.default_branch, installId);
 
-    const version = await this.repositoryService.getIncrementedVersion(repository, versionType, installation.id);
-    await this.repositoryService.createRelease(repository, version, installation.id, reason);
+    await this.repositoryService.createTagRef(repository, version, sha, installId, reason);
 
     return version;
   }
@@ -197,7 +209,7 @@ export class DeployerService {
     } catch (e) {
       this.logger.error(`Error handling amended commit ${oldCommitSha.slice(0, 8)}:`);
       this.logger.error(e);
-      // Don't throw - allow the process to continue with creating the new release
+      // Don't throw - allow the process to continue with creating the new tag
     }
   }
 }

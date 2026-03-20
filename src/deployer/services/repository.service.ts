@@ -48,14 +48,30 @@ export class RepositoryService {
     return `v${parsedVersion.major}.${parsedVersion.minor}.${parsedVersion.patch}`;
   }
 
-  async createRelease(repository: RepositoryDto, tag: string, installId: number, reason: string) {
-    const path = `/repos/${repository.owner.login}/${repository.name}/releases`;
+  async getBranchHeadSha(repository: RepositoryDto, branch: string, installId: number): Promise<string> {
+    const path = `/repos/${repository.owner.login}/${repository.name}/branches/${encodeURIComponent(branch)}`;
+    const branchData = await this.api.get(path, undefined, installId);
+
+    return branchData.commit.sha;
+  }
+
+  async createTagRef(
+    repository: RepositoryDto,
+    tag: string,
+    objectSha: string,
+    installId: number,
+    reason: string
+  ): Promise<void> {
+    const path = `/repos/${repository.owner.login}/${repository.name}/git/refs`;
+    const ref = `refs/tags/${tag}`;
 
     try {
-      await this.api.post(path, { tag_name: tag }, undefined, installId);
-      this.logger.debug(`Created release "${tag}" at "${repository.full_name}". Reason source: "${reason}"`);
+      await this.api.post(path, { ref, sha: objectSha }, undefined, installId);
+      this.logger.debug(
+        `Created tag "${tag}" at ${objectSha.slice(0, 7)} on "${repository.full_name}". Reason: "${reason}"`
+      );
     } catch (e) {
-      this.logger.error(`Could not create release:`);
+      this.logger.error(`Could not create tag ref:`);
       this.logger.error(e);
     }
   }
