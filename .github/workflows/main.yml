@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    tags: v[0-9]+.[0-9]+.[0-9]+
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
 
 env:
   IMAGE_NAME: ${{ secrets.DOCKER_LOGIN }}/deployment-helper
@@ -13,40 +14,48 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Log into Docker registry
-      run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_LOGIN }} --password-stdin
-    - name: Build image
-      run: |
-        docker pull ${IMAGE_NAME}:latest
+    - uses: actions/checkout@v7
 
-        docker build \
-          --cache-from ${IMAGE_NAME}:latest \
-          -t ${IMAGE_NAME}:latest \
-          .
+    - name: Docker Setup Buildx
+      uses: docker/setup-buildx-action@v4
 
-    - name: Push images
-      run: |
-        # Strip git ref prefix from version
-        VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+    - name: Login to Docker Hub
+      uses: docker/login-action@v4
+      with:
+        username: ${{ secrets.DOCKER_LOGIN }}
+        password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-        docker push ${IMAGE_NAME}:latest
+    - name: Docker meta
+      id: meta
+      uses: docker/metadata-action@v6
+      with:
+        images: ${{ env.IMAGE_NAME }}
+        tags: |
+          type=semver,pattern={{version}}
 
-        docker tag ${IMAGE_NAME}:latest ${IMAGE_NAME}:${VERSION}
-        docker push ${IMAGE_NAME}:${VERSION}
+    - name: Build and push
+      uses: docker/build-push-action@v7
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
+        cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max
 
-  deploy:
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+
+  deploy_contabo:
     needs: build-push
 
     runs-on: ubuntu-latest
     steps:
       - name: Deploy
-        uses: appleboy/ssh-action@v0.1.2
+        uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.SERVER_HOST }}
+          host: ${{ secrets.SERVER2_HOST }}
           username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
-          passphrase: ${{ secrets.SERVER_SSH_PRIVATE_KEY_PASSPHRASE }}
+          key: ${{ secrets.SERVER2_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER2_PORT }}
           script: |
-            manage-docker pull-restart deployment-helper prod
+            make -C /opt/infra deploy SVC=deployment-helper TAG="${{ needs.build-push.outputs.version }}"
