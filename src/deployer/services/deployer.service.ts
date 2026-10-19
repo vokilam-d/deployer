@@ -112,7 +112,15 @@ export class DeployerService {
     return version;
   }
 
+  /**
+   * A push yields one release, so when several of its commits carry a marker the biggest bump wins
+   * (`$major` over `$minor` over `$patch`), whatever their order. Among equal markers the first commit
+   * is the one reported.
+   */
   private getVersionTypeFromOwnerCommit(commits: CommitDto[], repository: RepositoryDto): [VersionType, CommitDto] {
+    let highestType: VersionType = null;
+    let highestCommit: CommitDto = null;
+
     for (const commit of commits) {
       if (commit.committer.username !== repository.owner.login) {
         continue;
@@ -123,10 +131,18 @@ export class DeployerService {
         continue;
       }
 
-      return [versionType, commit];
+      if (!highestType || this.getVersionTypePriority(versionType) < this.getVersionTypePriority(highestType)) {
+        highestType = versionType;
+        highestCommit = commit;
+      }
     }
 
-    return [null, null];
+    return [highestType, highestCommit];
+  }
+
+  /** Lower is bigger: the index in this list is the priority */
+  private getVersionTypePriority(versionType: VersionType): number {
+    return [VersionType.Major, VersionType.Minor, VersionType.Patch].indexOf(versionType);
   }
 
   private getVersionTypeFromStr(str: string): VersionType {
